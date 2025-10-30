@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaLive Distributor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: #1e293b;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #60a5fa;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .channels-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .channel-card {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #3b82f6;
+        }
+
+        .channel-card.running {
+            border-left-color: #10b981;
+        }
+
+        .channel-card.error {
+            border-left-color: #ef4444;
+        }
+
+        .channel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .channel-info h2 {
+            font-size: 20px;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+
+        .channel-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .channel-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .channel-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.running {
+            background: #10b98120;
+            color: #10b981;
+        }
+
+        .status-badge.stopped {
+            background: #64748b20;
+            color: #94a3b8;
+        }
+
+        .status-badge.error {
+            background: #ef444420;
+            color: #ef4444;
+        }
+
+        .outputs-section {
+            margin-top: 20px;
+            border-top: 1px solid #334155;
+            padding-top: 15px;
+        }
+
+        .outputs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .outputs-header h3 {
+            font-size: 16px;
+            color: #cbd5e1;
+        }
+
+        .outputs-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .output-item {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .output-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .output-name {
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .output-url {
+            font-size: 12px;
+            color: #64748b;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .output-stats {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .output-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #f1f5f9;
+            font-size: 22px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            color: #f1f5f9;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #94a3b8;
+        }
+
+        .uptime {
+            color: #10b981;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: #7f1d1d;
+            color: #fca5a5;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .channel-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .channel-controls {
+                justify-content: stretch;
+            }
+
+            .channel-controls button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>📡 MediaLive Distributor</h1>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="connection-status">Connected</span>
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="openCreateChannelModal()">+ Create Channel</button>
+        </header>
+
+        <div id="channels-container" class="channels-grid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📺</div>
+                <h3>No channels configured</h3>
+                <p>Create your first channel to get started</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Channel Modal -->
+    <div id="createChannelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create Channel</h2>
+                <button class="close-btn" onclick="closeModal('createChannelModal')">&times;</button>
+            </div>
+            <form id="createChannelForm" onsubmit="createChannel(event)">
+                <div class="form-group">
+                    <label>Channel Name *</label>
+                    <input type="text" name="name" required placeholder="e.g., Main Event Stream">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>RTP IP Address *</label>
+                        <input type="text" name="rtp_ip" required placeholder="e.g., 192.168.1.100">
+                    </div>
+                    <div class="form-group">
+                        <label>RTP Port *</label>
+                        <input type="number" name="rtp_port" required min="1024" max="65535" placeholder="e.g., 5000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Backup RTP IP (Optional)</label>
+                        <input type="text" name="backup_rtp_ip" placeholder="e.g., 192.168.1.101">
+                    </div>
+                    <div class="form-group">
+                        <label>Backup RTP Port (Optional)</label>
+                        <input type="number" name="backup_rtp_port" min="1024" max="65535" placeholder="e.g., 5001">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeModal('createChannelModal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Channel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Output Modal -->
+    <div id="addOutputModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Output</h2>
+                <button class="close-btn" onclick="closeModal('addOutputModal')">&times;</button>
+            </div>
+            <form id="addOutputForm" onsubmit="addOutput(event)">
+                <input type="hidden" name="channel_id">
+                <div class="form-group">
+                    <label>Output Name</label>
+                    <input type="text" name="name" placeholder="Leave blank for auto-naming (Output 1, 2, 3...)">
+                </div>
+                <div class="form-group">
+                    <label>Protocol *</label>
+                    <select name="protocol" required onchange="updateOutputUrlPlaceholder(this)">
+                        <option value="srt">SRT (with SCTE-35)</option>
+                        <option value="rtmp">RTMP</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Output URL *</label>
+                    <input type="text" name="url" id="outputUrl" required placeholder="srt://destination:port?streamid=publish">
+                    <small style="color: #64748b; font-size: 12px; margin-top: 5px; display: block;">
+                        SRT example: srt://destination:port?streamid=publish<br>
+                        RTMP example: rtmp://destination/app/streamkey
+                    </small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeModal('addOutputModal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Output</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let channels = {};
+        let reconnectInterval;
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('connection-status').textContent = 'Connected';
+                clearInterval(reconnectInterval);
+                loadChannels();
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                channels = {};
+                data.channels.forEach(channel => {
+                    channels[channel.id] = channel;
+                });
+                renderChannels();
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('connection-status').textContent = 'Disconnected - Reconnecting...';
+                reconnectInterval = setInterval(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        // Load channels from API
+        async function loadChannels() {
+            try {
+                const response = await fetch('/api/channels');
+                const data = await response.json();
+                channels = {};
+                data.channels.forEach(channel => {
+                    channels[channel.id] = channel;
+                });
+                renderChannels();
+            } catch (error) {
+                console.error('Error loading channels:', error);
+            }
+        }
+
+        // Render channels
+        function renderChannels() {
+            const container = document.getElementById('channels-container');
+            
+            if (Object.keys(channels).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📺</div>
+                        <h3>No channels configured</h3>
+                        <p>Create your first channel to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Object.values(channels).map(channel => `
+                <div class="channel-card ${channel.status}">
+                    <div class="channel-header">
+                        <div class="channel-info">
+                            <h2>${escapeHtml(channel.name)}</h2>
+                            <div class="channel-meta">
+                                <div class="channel-meta-item">
+                                    <span>📥</span>
+                                    <span>${escapeHtml(channel.rtp_ip)}:${channel.rtp_port}</span>
+                                </div>
+                                ${channel.backup_rtp_ip ? `
+                                    <div class="channel-meta-item">
+                                        <span>🔄</span>
+                                        <span>${escapeHtml(channel.backup_rtp_ip)}:${channel.backup_rtp_port}</span>
+                                    </div>
+                                ` : ''}
+                                <div class="channel-meta-item">
+                                    <span class="status-badge ${channel.status}">${channel.status}</span>
+                                </div>
+                                ${channel.uptime ? `
+                                    <div class="channel-meta-item">
+                                        <span class="uptime">⏱ ${formatUptime(channel.uptime)}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="channel-controls">
+                            ${channel.status === 'running' ? `
+                                <button class="btn btn-danger btn-small" onclick="stopChannel('${channel.id}')">Stop</button>
+                            ` : `
+                                <button class="btn btn-success btn-small" onclick="startChannel('${channel.id}')">Start</button>
+                            `}
+                            <button class="btn btn-small" onclick="openAddOutputModal('${channel.id}')">+ Add Output</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteChannel('${channel.id}')">Delete</button>
+                        </div>
+                    </div>
+                    
+                    ${channel.outputs.length > 0 ? `
+                        <div class="outputs-section">
+                            <div class="outputs-header">
+                                <h3>Outputs (${channel.outputs.length})</h3>
+                            </div>
+                            <div class="outputs-list">
+                                ${channel.outputs.map(output => `
+                                    <div class="output-item">
+                                        <div class="output-info">
+                                            <div class="output-name">
+                                                ${escapeHtml(output.name)}
+                                                <span style="font-size: 11px; color: #64748b; font-weight: normal; text-transform: uppercase; margin-left: 8px;">${output.protocol}</span>
+                                            </div>
+                                            <div class="output-url">${escapeHtml(output.url)}</div>
+                                            ${output.last_error ? `
+                                                <div class="error-message">⚠️ ${escapeHtml(output.last_error)}</div>
+                                            ` : ''}
+                                        </div>
+                                        <div class="output-stats">
+                                            <span class="status-badge ${output.status}">${output.status}</span>
+                                            ${output.uptime ? `<span class="uptime">${formatUptime(output.uptime)}</span>` : ''}
+                                            ${output.error_count > 0 ? `<span style="color: #ef4444;">❌ ${output.error_count}</span>` : ''}
+                                        </div>
+                                        <div class="output-controls">
+                                            <button class="btn btn-danger btn-small" onclick="removeOutput('${channel.id}', '${output.id}')">Remove</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Create channel
+        async function createChannel(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const data = {
+                name: formData.get('name'),
+                rtp_ip: formData.get('rtp_ip'),
+                rtp_port: parseInt(formData.get('rtp_port')),
+                outputs: []
+            };
+
+            if (formData.get('backup_rtp_ip')) {
+                data.backup_rtp_ip = formData.get('backup_rtp_ip');
+                data.backup_rtp_port = parseInt(formData.get('backup_rtp_port'));
+            }
+
+            try {
+                const response = await fetch('/api/channels', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal('createChannelModal');
+                    form.reset();
+                    loadChannels();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Error creating channel: ' + error.message);
+            }
+        }
+
+        // Start channel
+        async function startChannel(channelId) {
+            try {
+                const response = await fetch(`/api/channels/${channelId}/start`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert('Error starting channel: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Error starting channel: ' + error.message);
+            }
+        }
+
+        // Stop channel
+        async function stopChannel(channelId) {
+            try {
+                await fetch(`/api/channels/${channelId}/stop`, {
+                    method: 'POST'
+                });
+            } catch (error) {
+                alert('Error stopping channel: ' + error.message);
+            }
+        }
+
+        // Delete channel
+        async function deleteChannel(channelId) {
+            if (!confirm('Are you sure you want to delete this channel?')) {
+                return;
+            }
+
+            try {
+                await fetch(`/api/channels/${channelId}`, {
+                    method: 'DELETE'
+                });
+                loadChannels();
+            } catch (error) {
+                alert('Error deleting channel: ' + error.message);
+            }
+        }
+
+        // Add output
+        async function addOutput(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const channelId = formData.get('channel_id');
+            
+            const data = {
+                protocol: formData.get('protocol'),
+                url: formData.get('url')
+            };
+
+            if (formData.get('name')) {
+                data.name = formData.get('name');
+            }
+
+            try {
+                const response = await fetch(`/api/channels/${channelId}/outputs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    closeModal('addOutputModal');
+                    form.reset();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + error.detail);
+                }
+            } catch (error) {
+                alert('Error adding output: ' + error.message);
+            }
+        }
+
+        // Remove output
+        async function removeOutput(channelId, outputId) {
+            if (!confirm('Are you sure you want to remove this output?')) {
+                return;
+            }
+
+            try {
+                await fetch(`/api/channels/${channelId}/outputs/${outputId}`, {
+                    method: 'DELETE'
+                });
+            } catch (error) {
+                alert('Error removing output: ' + error.message);
+            }
+        }
+
+        // Modal functions
+        function openCreateChannelModal() {
+            document.getElementById('createChannelModal').classList.add('active');
+        }
+
+        function openAddOutputModal(channelId) {
+            const form = document.getElementById('addOutputForm');
+            form.querySelector('[name="channel_id"]').value = channelId;
+            document.getElementById('addOutputModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function updateOutputUrlPlaceholder(select) {
+            const urlInput = document.getElementById('outputUrl');
+            if (select.value === 'srt') {
+                urlInput.placeholder = 'srt://destination:port?streamid=publish';
+            } else {
+                urlInput.placeholder = 'rtmp://destination/app/streamkey';
+            }
+        }
+
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+
+        // Initialize
+        connectWebSocket();
+    </script>
+</body>
+</html>

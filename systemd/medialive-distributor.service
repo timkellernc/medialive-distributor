@@ -1,0 +1,28 @@
+[Unit]
+Description=MediaLive Distributor
+After=network.target
+
+[Service]
+Type=simple
+User=medialive
+Group=medialive
+WorkingDirectory=/opt/medialive-distributor
+Environment="CONFIG_DIR=/opt/medialive-distributor/config"
+Environment="PATH=/opt/medialive-distributor/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/opt/medialive-distributor/venv/bin/python /opt/medialive-distributor/app.py
+Restart=always
+RestartSec=10
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/medialive-distributor/config /opt/medialive-distributor/logs
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

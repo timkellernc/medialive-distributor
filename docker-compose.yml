@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  medialive-distributor:
+    build: .
+    container_name: medialive-distributor
+    restart: unless-stopped
+    
+    ports:
+      # Web UI and API
+      - "8000:8000"
+      # RTP input ports (adjust range based on your needs)
+      # These are example ports - modify for your actual MediaLive outputs
+      - "5000-5025:5000-5025/udp"
+    
+    volumes:
+      # Persist configuration
+      - ./config:/app/config
+      # Optional: logs
+      - ./logs:/app/logs
+    
+    environment:
+      # Configuration directory
+      - CONFIG_DIR=/app/config
+      
+    # Network mode host can be used for better performance and easier port management
+    # Uncomment the line below and comment out the ports section if using host networking
+    # network_mode: "host"
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 2G
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+# Optional: Create a custom network
+networks:
+  default:
+    driver: bridge
