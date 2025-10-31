@@ -262,7 +262,22 @@ class Channel:
             # Setup FIFO for stream distribution
             self.fifo_path = self._setup_fifo()
             
-            # Start receiver process
+            # IMPORTANT: Start outputs FIRST - they will block waiting to read from FIFO
+            # This allows the receiver to then open the FIFO for writing
+            logger.info(f"Starting outputs for channel {self.id}")
+            for output in self.outputs.values():
+                if output.config.enabled:
+                    try:
+                        await output.start(f"file:{self.fifo_path}")
+                        # Small delay between outputs
+                        await asyncio.sleep(0.1)
+                    except Exception as e:
+                        logger.error(f"Failed to start output {output.id}: {e}")
+            
+            # Give outputs time to open the FIFO for reading
+            await asyncio.sleep(0.5)
+            
+            # Now start receiver - it can open FIFO for writing
             rtp_url = self._get_rtp_url()
             cmd = [
                 "ffmpeg",
@@ -273,7 +288,6 @@ class Channel:
                 "-copyts",
                 "-f", "mpegts",
                 "-muxdelay", "0",
-                "-y",  # Overwrite
                 self.fifo_path
             ]
             
@@ -286,8 +300,8 @@ class Channel:
                 preexec_fn=os.setsid if os.name != 'nt' else None
             )
             
-            # Give receiver time to start and open the FIFO
-            await asyncio.sleep(2)
+            # Give receiver time to start
+            await asyncio.sleep(1)
             
             if self.receive_process.poll() is not None:
                 stderr = self.receive_process.stderr.read().decode()
@@ -297,15 +311,7 @@ class Channel:
             if not os.path.exists(self.fifo_path):
                 raise Exception(f"FIFO disappeared: {self.fifo_path}")
             
-            logger.info(f"Receiver started, FIFO ready: {self.fifo_path}")
-            
-            # Start all enabled outputs
-            for output in self.outputs.values():
-                if output.config.enabled:
-                    try:
-                        await output.start(f"file:{self.fifo_path}")
-                    except Exception as e:
-                        logger.error(f"Failed to start output {output.id}: {e}")
+            logger.info(f"Receiver started and writing to FIFO: {self.fifo_path}")
             
             self.status = "running"
             self.started_at = datetime.utcnow().isoformat()
