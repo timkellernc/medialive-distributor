@@ -227,8 +227,8 @@ class Channel:
             self.outputs[output_id] = Output(output_id, output_config, channel_id)
     
     def _get_rtp_url(self) -> str:
-        """Get RTP input URL"""
-        return f"rtp://{self.config.rtp_ip}:{self.config.rtp_port}"
+        """Get UDP/RTP input URL"""
+        return f"udp://{self.config.rtp_ip}:{self.config.rtp_port}?overrun_nonfatal=1&fifo_size=50000000"
     
     def _setup_fifo(self) -> str:
         """Setup named pipe for stream distribution"""
@@ -260,11 +260,12 @@ class Channel:
             cmd = [
                 "ffmpeg",
                 "-loglevel", "warning",
-                "-protocol_whitelist", "file,rtp,udp",
+                "-protocol_whitelist", "file,udp",
                 "-i", rtp_url,
                 "-c", "copy",
                 "-copyts",
                 "-f", "mpegts",
+                "-muxdelay", "0",
                 "-y",  # Overwrite
                 self.fifo_path
             ]
