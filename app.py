@@ -238,11 +238,18 @@ class Channel:
         if os.path.exists(fifo_path):
             try:
                 os.remove(fifo_path)
-            except:
-                pass
+                logger.info(f"Removed existing FIFO: {fifo_path}")
+            except Exception as e:
+                logger.warning(f"Could not remove existing FIFO {fifo_path}: {e}")
         
         # Create new fifo
-        os.mkfifo(fifo_path)
+        try:
+            os.mkfifo(fifo_path)
+            logger.info(f"Created FIFO: {fifo_path}")
+        except Exception as e:
+            logger.error(f"Failed to create FIFO {fifo_path}: {e}")
+            raise
+        
         return fifo_path
     
     async def start(self):
@@ -279,12 +286,18 @@ class Channel:
                 preexec_fn=os.setsid if os.name != 'nt' else None
             )
             
-            # Give receiver time to start
-            await asyncio.sleep(1)
+            # Give receiver time to start and open the FIFO
+            await asyncio.sleep(2)
             
             if self.receive_process.poll() is not None:
                 stderr = self.receive_process.stderr.read().decode()
                 raise Exception(f"Receiver failed to start: {stderr}")
+            
+            # Verify FIFO still exists
+            if not os.path.exists(self.fifo_path):
+                raise Exception(f"FIFO disappeared: {self.fifo_path}")
+            
+            logger.info(f"Receiver started, FIFO ready: {self.fifo_path}")
             
             # Start all enabled outputs
             for output in self.outputs.values():
