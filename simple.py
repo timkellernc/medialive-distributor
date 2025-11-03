@@ -1,6 +1,8 @@
 import subprocess
 import threading
 import time
+import sys
+import select
 
 INPUT_UDP = "udp://0.0.0.0:5001"
 
@@ -12,6 +14,7 @@ class MultiOutputStream:
         self.running = False
         self.thread = None
         self.lock = threading.Lock()
+        self.restart_flag = False
     
     def start(self):
         self.running = True
@@ -31,17 +34,18 @@ class MultiOutputStream:
     
     def _run(self):
         while self.running:
+            cmd = None
             with self.lock:
                 cmd = self._build_command()
+                self.restart_flag = False
             
             if not cmd:
-                print("No outputs configured, waiting...")
+                print("\nNo outputs configured, waiting...")
                 time.sleep(1)
                 continue
             
             try:
-                print(f"Starting stream with {len(self.outputs)} outputs")
-                print(f"Command: {' '.join(cmd)}")
+                print(f"\nStarting stream with {len(self.outputs)} outputs")
                 
                 self.process = subprocess.Popen(
                     cmd,
@@ -49,14 +53,27 @@ class MultiOutputStream:
                     stderr=subprocess.DEVNULL
                 )
                 
-                self.process.wait()
+                # Wait for process to end or restart flag
+                while self.running:
+                    # Check if process died
+                    if self.process.poll() is not None:
+                        break
+                    
+                    # Check if restart requested
+                    if self.restart_flag:
+                        print("\nRestart requested, stopping current stream...")
+                        self.process.terminate()
+                        self.process.wait(timeout=2)
+                        break
+                    
+                    time.sleep(0.5)
                 
-                if self.running:
-                    print("Stream died, restarting in 5 seconds...")
+                if self.running and not self.restart_flag:
+                    print("\nStream died, restarting in 5 seconds...")
                     time.sleep(5)
                     
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"\nError: {e}")
                 if self.running:
                     time.sleep(5)
     
@@ -68,10 +85,7 @@ class MultiOutputStream:
             
             self.outputs[name] = url
             print(f"Added output '{name}': {url}")
-            
-            # Restart ffmpeg with new output
-            if self.process:
-                self.process.terminate()
+            self.restart_flag = True
             
             return True
     
@@ -83,10 +97,7 @@ class MultiOutputStream:
             
             del self.outputs[name]
             print(f"Removed output '{name}'")
-            
-            # Restart ffmpeg without this output
-            if self.process:
-                self.process.terminate()
+            self.restart_flag = True
             
             return True
     
@@ -98,6 +109,13 @@ class MultiOutputStream:
                 print("Configured outputs:")
                 for name, url in self.outputs.items():
                     print(f"  - {name}: {url}")
+    
+    def get_status(self):
+        if not self.running:
+            return "Stopped"
+        if self.process and self.process.poll() is None:
+            return f"Running ({len(self.outputs)} outputs)"
+        return "Starting..."
     
     def stop(self):
         self.running = False
@@ -113,28 +131,41 @@ def main():
     stream.start()
     
     # Add initial outputs
-    stream.add_output("SRT-1", "srt://192.168.11.23:5001?mode=caller")
+    stream.add_output("UDP-1", "udp://192.168.11.23:5000")
     
-    print("\nCommands: add, remove, list, quit")
+    print("\nCommands: add, remove, list, status, quit")
+    print("(Press Enter if prompt doesn't appear)")
     
     try:
         while True:
-            cmd = input("> ").strip().lower()
-            
-            if cmd == "quit":
+            try:
+                cmd = input("\n> ").strip().lower()
+            except EOFError:
                 break
-            elif cmd == "list":
+            
+            if not cmd:
+                continue
+            
+            if cmd == "quit" or cmd == "q":
+                break
+            elif cmd == "list" or cmd == "l":
                 stream.list_outputs()
-            elif cmd == "add":
-                name = input("Name: ")
-                url = input("URL: ")
-                stream.add_output(name, url)
-            elif cmd == "remove":
-                name = input("Name: ")
-                stream.remove_output(name)
+            elif cmd == "status" or cmd == "s":
+                print(f"Status: {stream.get_status()}")
+            elif cmd == "add" or cmd == "a":
+                name = input("Name: ").strip()
+                url = input("URL: ").strip()
+                if name and url:
+                    stream.add_output(name, url)
+            elif cmd == "remove" or cmd == "r":
+                name = input("Name: ").strip()
+                if name:
+                    stream.remove_output(name)
+            else:
+                print("Unknown command. Available: add, remove, list, status, quit")
                 
     except KeyboardInterrupt:
-        print("\nStopping...")
+        print("\n\nStopping...")
     
     stream.stop()
     print("Done")
