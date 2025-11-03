@@ -1,6 +1,7 @@
 import subprocess
 import threading
 import time
+import sys
 
 INPUT_UDP = "udp://0.0.0.0:5001"
 
@@ -24,13 +25,19 @@ class StreamManager:
                 continue
             
             # Build command
-            cmd = ['ffmpeg', '-i', self.input_url]
+            cmd = ['ffmpeg', '-nostdin', '-i', self.input_url]
             for url in self.outputs.values():
                 cmd.extend(['-c', 'copy', '-f', 'mpegts', url])
             
-            print(f"\n[INFO] Starting ffmpeg with {len(self.outputs)} output(s)")
+            sys.stdout.write(f"\n[Starting ffmpeg with {len(self.outputs)} output(s)]\n")
+            sys.stdout.flush()
             
-            self.process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.process = subprocess.Popen(
+                cmd, 
+                stdout=subprocess.DEVNULL, 
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL
+            )
             self.needs_restart = False
             
             # Wait for ffmpeg to die or restart signal
@@ -40,30 +47,35 @@ class StreamManager:
             if self.needs_restart:
                 self.process.terminate()
                 self.process.wait()
-                print("[INFO] Restarting ffmpeg...")
             else:
-                print("[INFO] FFmpeg died, restarting in 5s...")
+                sys.stdout.write("[FFmpeg died, restarting in 5s]\n")
+                sys.stdout.flush()
                 time.sleep(5)
     
     def add(self, name, url):
         self.outputs[name] = url
-        print(f"Added: {name} -> {url}")
+        sys.stdout.write(f"Added: {name} -> {url}\n")
+        sys.stdout.flush()
         self.needs_restart = True
     
     def remove(self, name):
         if name in self.outputs:
             del self.outputs[name]
-            print(f"Removed: {name}")
+            sys.stdout.write(f"Removed: {name}\n")
+            sys.stdout.flush()
             self.needs_restart = True
         else:
-            print(f"Not found: {name}")
+            sys.stdout.write(f"Not found: {name}\n")
+            sys.stdout.flush()
     
     def list(self):
         if self.outputs:
             for name, url in self.outputs.items():
-                print(f"  {name}: {url}")
+                sys.stdout.write(f"  {name}: {url}\n")
+                sys.stdout.flush()
         else:
-            print("  No outputs")
+            sys.stdout.write("  (no outputs)\n")
+            sys.stdout.flush()
     
     def stop(self):
         self.running = False
@@ -71,31 +83,53 @@ class StreamManager:
             self.process.terminate()
 
 # Main
+sys.stdout.write("Starting manager...\n")
+sys.stdout.flush()
+
 manager = StreamManager(INPUT_UDP)
 manager.start()
 
-print("Commands: add / remove / list / quit")
+sys.stdout.write("\nCommands: add / remove / list / quit\n\n")
+sys.stdout.flush()
 
 while True:
-    cmd = input("\n> ").strip().lower()
+    try:
+        sys.stdout.write("> ")
+        sys.stdout.flush()
+        cmd = sys.stdin.readline().strip().lower()
+        
+        if not cmd:
+            continue
+        
+        if cmd == "add":
+            sys.stdout.write("Name: ")
+            sys.stdout.flush()
+            name = sys.stdin.readline().strip()
+            sys.stdout.write("URL: ")
+            sys.stdout.flush()
+            url = sys.stdin.readline().strip()
+            manager.add(name, url)
+        
+        elif cmd == "remove":
+            sys.stdout.write("Name: ")
+            sys.stdout.flush()
+            name = sys.stdin.readline().strip()
+            manager.remove(name)
+        
+        elif cmd == "list":
+            manager.list()
+        
+        elif cmd == "quit":
+            manager.stop()
+            break
+        
+        else:
+            sys.stdout.write("Unknown command\n")
+            sys.stdout.flush()
     
-    if cmd == "add":
-        name = input("Name: ").strip()
-        url = input("URL: ").strip()
-        manager.add(name, url)
-    
-    elif cmd == "remove":
-        name = input("Name: ").strip()
-        manager.remove(name)
-    
-    elif cmd == "list":
-        manager.list()
-    
-    elif cmd == "quit":
+    except KeyboardInterrupt:
         manager.stop()
         break
-    
-    else:
-        print("Unknown command")
 
-print("Stopped")
+sys.stdout.write("Stopped\n")
+sys.stdout.flush()
