@@ -34,11 +34,10 @@ class StreamOutput:
                     self.output_url
                 ]
                 
-                self.process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
+                print(f"[{self.name}] Command: {' '.join(cmd)}")
+                
+                # Run without hiding output so we can see errors
+                self.process = subprocess.Popen(cmd)
                 
                 self.process.wait()
                 
@@ -55,17 +54,6 @@ class StreamOutput:
         self.running = False
         if self.process:
             self.process.terminate()
-            try:
-                self.process.wait(timeout=5)
-            except:
-                self.process.kill()
-    
-    def get_status(self):
-        if not self.running:
-            return "Stopped"
-        if self.process and self.process.poll() is None:
-            return "Running"
-        return "Reconnecting"
 
 class StreamManager:
     def __init__(self, input_url):
@@ -96,9 +84,8 @@ class StreamManager:
             print("No active streams")
         else:
             print("Active streams:")
-            for name, stream in self.streams.items():
-                status = stream.get_status()
-                print(f"  - {name}: {stream.output_url} [{status}]")
+            for name in self.streams.keys():
+                print(f"  - {name}: {self.streams[name].output_url}")
     
     def stop_all(self):
         for stream in self.streams.values():
@@ -109,8 +96,7 @@ def main():
     manager = StreamManager(INPUT_UDP)
     
     # Add initial streams
-    manager.add_stream("SRT-1", "srt://192.168.11.234:5001?mode=caller")
-    manager.add_stream("UDP-1", "udp://192.168.11.100:5002")
+    manager.add_stream("UDP-1", "udp://192.168.11.23:5000")
     
     print("\nCommands: add, remove, list, quit")
     
