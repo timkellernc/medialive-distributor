@@ -113,8 +113,7 @@ def main():
     stream.start()
     
     # Add initial outputs
-    stream.add_output("SRT-1", "srt://192.168.11.234:5001?mode=caller")
-    stream.add_output("UDP-1", "udp://192.168.11.100:5002")
+    stream.add_output("SRT-1", "srt://192.168.11.23:5001?mode=caller")
     
     print("\nCommands: add, remove, list, quit")
     
