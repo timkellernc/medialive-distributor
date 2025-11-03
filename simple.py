@@ -4,99 +4,117 @@ import time
 
 INPUT_UDP = "udp://0.0.0.0:5001"
 
-class StreamOutput:
-    def __init__(self, name, input_url, output_url):
-        self.name = name
+class MultiOutputStream:
+    def __init__(self, input_url):
         self.input_url = input_url
-        self.output_url = output_url
+        self.outputs = {}
         self.process = None
         self.running = False
         self.thread = None
+        self.lock = threading.Lock()
     
     def start(self):
         self.running = True
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
     
+    def _build_command(self):
+        if not self.outputs:
+            return None
+        
+        cmd = ['ffmpeg', '-i', self.input_url]
+        
+        for name, url in self.outputs.items():
+            cmd.extend(['-c', 'copy', '-f', 'mpegts', url])
+        
+        return cmd
+    
     def _run(self):
         while self.running:
+            with self.lock:
+                cmd = self._build_command()
+            
+            if not cmd:
+                print("No outputs configured, waiting...")
+                time.sleep(1)
+                continue
+            
             try:
-                print(f"[{self.name}] Starting stream to {self.output_url}")
+                print(f"Starting stream with {len(self.outputs)} outputs")
+                print(f"Command: {' '.join(cmd)}")
                 
-                cmd = [
-                    'ffmpeg',
-                    '-reconnect', '1',
-                    '-reconnect_streamed', '1',
-                    '-reconnect_delay_max', '5',
-                    '-i', self.input_url,
-                    '-c', 'copy',
-                    '-f', 'mpegts',
-                    self.output_url
-                ]
-                
-                print(f"[{self.name}] Command: {' '.join(cmd)}")
-                
-                # Run without hiding output so we can see errors
-                self.process = subprocess.Popen(cmd)
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
                 
                 self.process.wait()
                 
                 if self.running:
-                    print(f"[{self.name}] Stream died, reconnecting in 5 seconds...")
+                    print("Stream died, restarting in 5 seconds...")
                     time.sleep(5)
                     
             except Exception as e:
-                print(f"[{self.name}] Error: {e}")
+                print(f"Error: {e}")
                 if self.running:
                     time.sleep(5)
+    
+    def add_output(self, name, url):
+        with self.lock:
+            if name in self.outputs:
+                print(f"Output '{name}' already exists")
+                return False
+            
+            self.outputs[name] = url
+            print(f"Added output '{name}': {url}")
+            
+            # Restart ffmpeg with new output
+            if self.process:
+                self.process.terminate()
+            
+            return True
+    
+    def remove_output(self, name):
+        with self.lock:
+            if name not in self.outputs:
+                print(f"Output '{name}' not found")
+                return False
+            
+            del self.outputs[name]
+            print(f"Removed output '{name}'")
+            
+            # Restart ffmpeg without this output
+            if self.process:
+                self.process.terminate()
+            
+            return True
+    
+    def list_outputs(self):
+        with self.lock:
+            if not self.outputs:
+                print("No outputs configured")
+            else:
+                print("Configured outputs:")
+                for name, url in self.outputs.items():
+                    print(f"  - {name}: {url}")
     
     def stop(self):
         self.running = False
         if self.process:
             self.process.terminate()
-
-class StreamManager:
-    def __init__(self, input_url):
-        self.input_url = input_url
-        self.streams = {}
-    
-    def add_stream(self, name, output_url):
-        if name in self.streams:
-            print(f"Stream '{name}' already exists")
-            return
-        
-        stream = StreamOutput(name, self.input_url, output_url)
-        stream.start()
-        self.streams[name] = stream
-        print(f"Added stream '{name}'")
-    
-    def remove_stream(self, name):
-        if name not in self.streams:
-            print(f"Stream '{name}' not found")
-            return
-        
-        self.streams[name].stop()
-        del self.streams[name]
-        print(f"Removed stream '{name}'")
-    
-    def list_streams(self):
-        if not self.streams:
-            print("No active streams")
-        else:
-            print("Active streams:")
-            for name in self.streams.keys():
-                print(f"  - {name}: {self.streams[name].output_url}")
-    
-    def stop_all(self):
-        for stream in self.streams.values():
-            stream.stop()
-        self.streams.clear()
+            try:
+                self.process.wait(timeout=5)
+            except:
+                self.process.kill()
 
 def main():
-    manager = StreamManager(INPUT_UDP)
+    stream = MultiOutputStream(INPUT_UDP)
+    stream.start()
     
-    # Add initial streams
-    manager.add_stream("UDP-1", "udp://192.168.11.23:5000")
+    # Add initial outputs
+    stream.add_output("SRT-1", "srt://192.168.11.234:5001?mode=caller")
+    stream.add_output("UDP-1", "udp://192.168.11.100:5002")
     
     print("\nCommands: add, remove, list, quit")
     
@@ -107,19 +125,19 @@ def main():
             if cmd == "quit":
                 break
             elif cmd == "list":
-                manager.list_streams()
+                stream.list_outputs()
             elif cmd == "add":
                 name = input("Name: ")
                 url = input("URL: ")
-                manager.add_stream(name, url)
+                stream.add_output(name, url)
             elif cmd == "remove":
                 name = input("Name: ")
-                manager.remove_stream(name)
+                stream.remove_output(name)
                 
     except KeyboardInterrupt:
         print("\nStopping...")
     
-    manager.stop_all()
+    stream.stop()
     print("Done")
 
 if __name__ == "__main__":
