@@ -5,15 +5,13 @@ import time
 INPUT_UDP = "udp://0.0.0.0:5001"
 
 class StreamOutput:
-    def __init__(self, name, input_url, output_url, max_retry_delay=60):
+    def __init__(self, name, input_url, output_url):
         self.name = name
         self.input_url = input_url
         self.output_url = output_url
         self.process = None
         self.running = False
         self.thread = None
-        self.max_retry_delay = max_retry_delay
-        self.consecutive_failures = 0
     
     def start(self):
         self.running = True
@@ -36,38 +34,22 @@ class StreamOutput:
                     self.output_url
                 ]
                 
-                start_time = time.time()
-                
                 self.process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE
+                    stderr=subprocess.DEVNULL
                 )
                 
                 self.process.wait()
                 
-                # Check how long it ran
-                run_duration = time.time() - start_time
-                
-                if run_duration > 30:  # Ran for more than 30 seconds = success
-                    self.consecutive_failures = 0
-                    print(f"[{self.name}] Stream ran for {run_duration:.0f}s, reconnecting...")
-                else:
-                    self.consecutive_failures += 1
-                    print(f"[{self.name}] Stream failed quickly (failures: {self.consecutive_failures})")
-                
                 if self.running:
-                    # Exponential backoff: 5s, 10s, 20s, 40s, up to max
-                    delay = min(5 * (2 ** self.consecutive_failures), self.max_retry_delay)
-                    print(f"[{self.name}] Reconnecting in {delay} seconds...")
-                    time.sleep(delay)
+                    print(f"[{self.name}] Stream died, reconnecting in 5 seconds...")
+                    time.sleep(5)
                     
             except Exception as e:
                 print(f"[{self.name}] Error: {e}")
-                self.consecutive_failures += 1
                 if self.running:
-                    delay = min(5 * (2 ** self.consecutive_failures), self.max_retry_delay)
-                    time.sleep(delay)
+                    time.sleep(5)
     
     def stop(self):
         self.running = False
@@ -83,7 +65,7 @@ class StreamOutput:
             return "Stopped"
         if self.process and self.process.poll() is None:
             return "Running"
-        return f"Reconnecting (failures: {self.consecutive_failures})"
+        return "Reconnecting"
 
 class StreamManager:
     def __init__(self, input_url):
