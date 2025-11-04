@@ -25,7 +25,7 @@ services:
       - SRT_PORT_RANGE_START=${SRT_PORT_RANGE_START:-8890}
     volumes:
       - app-data:/data
-      - mediamtx-config:/config
+      - ./config:/config
       - app-logs:/app/logs
     depends_on:
       mediamtx:
