@@ -1,0 +1,131 @@
+================================================================================
+        STREAM DISTRIBUTION MANAGER - QUICK REFERENCE CARD
+================================================================================
+
+AFTER EXTRACTING THE ARCHIVE:
+
+1. Extract:
+   tar -xzf stream-manager-complete.tar.gz
+   cd stream-manager
+
+2. Setup:
+   cp .env.example .env
+   chmod +x start.sh
+
+3. Start:
+   ./start.sh
+   OR
+   docker-compose up -d
+
+4. Access:
+   http://YOUR-SERVER-IP:8080
+
+5. Default API Key:
+   your-secret-api-key-change-in-production
+
+================================================================================
+WHAT'S INCLUDED IN THIS ARCHIVE:
+================================================================================
+
+✓ app/api/              - API routes (inputs.py, outputs.py, system.py)
+✓ app/services/         - Business logic (4 service files)
+✓ app/static/           - Web UI (index.html)
+✓ config/               - MediaMTX configuration (mediamtx.yml)
+✓ logs/                 - Log directory
+✓ tests/                - Test suite
+✓ Documentation         - 10 comprehensive guides
+✓ Docker files          - Dockerfile, docker-compose.yml
+✓ Configuration         - .env.example, requirements.txt
+✓ Scripts               - start.sh
+
+================================================================================
+VERIFY FILES:
+================================================================================
+
+After extraction, verify these critical files exist:
+
+ls -la app/api/                    # Should show 4 files
+ls -la app/services/               # Should show 5 files
+ls -la config/mediamtx.yml         # MediaMTX config
+ls -la docker-compose.yml          # Container setup
+ls -la .env.example               # Environment template
+
+================================================================================
+TROUBLESHOOTING:
+================================================================================
+
+1. MediaMTX not starting?
+   - Check: ls -la config/mediamtx.yml
+   - Should exist with content
+   - Restart: docker-compose restart mediamtx
+
+2. Application not starting?
+   - Check: docker-compose logs app
+   - Verify: docker-compose ps
+
+3. Missing files?
+   - This archive contains ALL files
+   - Re-extract if needed
+
+4. Permission issues?
+   - Run: sudo usermod -aG docker $USER
+   - Log out and back in
+
+================================================================================
+DOCKER COMMANDS:
+================================================================================
+
+Start:           docker-compose up -d
+Stop:            docker-compose down
+Restart:         docker-compose restart
+Status:          docker-compose ps
+Logs:            docker-compose logs -f
+Logs (app):      docker-compose logs -f app
+Logs (mediamtx): docker-compose logs -f mediamtx
+
+================================================================================
+QUICK TEST:
+================================================================================
+
+# Health check
+curl -H "X-API-Key: your-secret-api-key-change-in-production" \
+     http://localhost:8080/api/health
+
+# Expected: {"status":"healthy","version":"1.0.0"}
+
+================================================================================
+DOCUMENTATION:
+================================================================================
+
+Start Here:      INDEX.md (documentation index)
+Quick Start:     QUICKSTART.md (5 minutes)
+Setup Guide:     SETUP.md (this is new!)
+Installation:    INSTALLATION.md (detailed)
+API Reference:   API.md
+Production:      DEPLOYMENT.md
+Architecture:    ARCHITECTURE.md
+
+================================================================================
+SUPPORT:
+================================================================================
+
+1. Check logs: docker-compose logs -f
+2. Read SETUP.md for common issues
+3. Read INSTALLATION.md for troubleshooting
+4. Check docker-compose ps for container status
+
+================================================================================
+PRODUCTION SECURITY:
+================================================================================
+
+Before production:
+1. Generate secure keys: openssl rand -hex 32
+2. Update API_KEY in .env
+3. Update SECRET_KEY in .env
+4. Enable PostgreSQL
+5. Set up SSL/TLS
+6. Configure firewall
+
+================================================================================
+ALL FILES ARE INCLUDED - READY TO USE!
+================================================================================
