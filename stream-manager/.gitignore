@@ -47,9 +47,6 @@ env/
 logs/
 *.log
 
-# MediaMTX config (generated)
-mediamtx.yml
-
 # OS
 .DS_Store
 Thumbs.db
