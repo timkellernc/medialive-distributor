@@ -28,8 +28,8 @@ services:
       - ./config:/config
       - app-logs:/app/logs
     depends_on:
-      mediamtx:
-        condition: service_healthy
+      - mediamtx
+      #  condition: service_healthy
     networks:
       - stream-network
     healthcheck:
